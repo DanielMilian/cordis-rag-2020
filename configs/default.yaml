@@ -1,0 +1,18 @@
+raw_path: data/raw/cordis/project.csv
+sep: ";"
+seed: 42
+sample_n: 8000
+min_words: 50
+columns:
+  id: id
+  acronym: acronym
+  title: title
+  objective: objective
+  keywords: keywords
+  topics: topics
+  fundingScheme: fundingScheme
+  status: status
+  startDate: startDate
+chunking:
+  size: 200
+  overlap: 40
