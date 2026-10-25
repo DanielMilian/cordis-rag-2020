@@ -10,3 +10,5 @@ data/
 .env
 __pycache__/
 .venv/
+gen.log
+gen.log
