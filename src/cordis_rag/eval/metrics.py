@@ -24,3 +24,16 @@ def bootstrap_ci(ranks, fn, n=2000, seed=0):
     rng = np.random.default_rng(seed)
     vals = [fn(ranks[rng.integers(0, len(ranks), len(ranks))]) for _ in range(n)]
     return float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))
+
+def paired_bootstrap(ranks_a, ranks_b, fn, n=2000, seed=0):
+    assert len(ranks_a) == len(ranks_b)
+    rng = np.random.default_rng(seed)
+    m = len(ranks_a)
+    d = []
+    for _ in range(n):
+        i = rng.integers(0, m ,m)
+        d.append(fn(ranks_b[i]) - fn(ranks_a[i]))
+    return float(fn(ranks_b) - fn(ranks_a)), float(np.percentile(d, 2.5)), float(np.percentile(d, 97.5))
+
+
+

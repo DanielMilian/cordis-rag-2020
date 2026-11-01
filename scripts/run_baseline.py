@@ -4,13 +4,17 @@ import pandas as pd
 from src.cordis_rag.chunking import build_chunks
 from src.cordis_rag.retrieval.bm25 import BM25Retriever
 from src.cordis_rag.eval.metrics import project_ranking, gold_ranks, summarize, bootstrap_ci
+from src.cordis_rag.eval.results import log_result, check_split
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--split", default="dev", choices=["dev", "test"])
 ap.add_argument("--size", type=int, default=200)
 ap.add_argument("--overlap", type=int, default=40)
 ap.add_argument("--sanity", action="store_true")
+ap.add_argument("--allow-test", action="store_true")
 a = ap.parse_args()
+check_split(a.split, "bm25", "", a.size, a.overlap, a.allow_test)
+
 
 df = pd.read_parquet("data/processed/projects.parquet")
 chunks = build_chunks(df, a.size, a.overlap)
@@ -33,13 +37,5 @@ for st in ("specific", "paraphrase"):
     ix = [i for i, q in enumerate(qs) if q["style"] == st]
     print(f"  {st:10s} n={len(ix)}", {k: round(v, 3) for k, v in summarize(ranks[ix]).items()})
 
-Path("results").mkdir(exist_ok=True)
-f = Path("results/results.csv")
-row = {"ts": dt.datetime.now().isoformat(timespec="seconds"), "method": "bm25",
-       "size": a.size, "overlap": a.overlap, "split": a.split, "n": len(qs), **m}
-new = not f.exists()
-with open(f, "a", newline="") as fh:
-    w = csv.DictWriter(fh, fieldnames=row.keys())
-    if new:
-        w.writeheader()
-    w.writerow(row)
+log_result("bm25", "", a.size, a.overlap, a.split, len(qs), m, a.allow_test)
+
