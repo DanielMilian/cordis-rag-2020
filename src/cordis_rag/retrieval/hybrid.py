@@ -30,7 +30,7 @@ class Index:
         self.bm = BM25Retriever(self.ch)
 
     def bm25_hits(self, questions):
-        return [self.bm-search(q, k=self.depth) for q in questions]
+        return [self.bm.search(q, k=self.depth) for q in questions]
 
     def dense_hits(self, Q):
         out = []

@@ -5,16 +5,20 @@ from src.cordis_rag.eval.results import log_result
 from src.cordis_rag.retrieval.hybrid import Index, PREFIX, rank_all
 
 split, K_RRF, LOGGING = "dev", 60, "--log" in sys.argv
-PREFIX = "Represent this sentence for searching relevant passages: "
 CONFIGS = [(200, 40), (400, 0), (128, 0), (128, 32), (200, 0), (200, 50), (64, 0), (64, 16)]
+df = pd.read_parquet("data/processed/projects.parquet")
+qs = [json.loads(l) for l in open(f"eval_data/eval_{split}.jsonl")]
+golds = [q["project_id"] for q in qs]
+m = SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
+Q = m.encode([PREFIX + q["question"] for q in qs], normalize_embeddings=True)
 
 
 def run_config(size, ov):
     ix = Index(df, size, ov)
-    bm_h = ix.bm25_hits[(q["question"] for q in qs])
+    bm_h = ix.bm25_hits([q["question"] for q in qs])
     de_h = ix.dense_hits(Q)
     hy_h = ix.hybrid_hits(bm_h, de_h, K_RRF)
-    rr = {"bm25": rank:all(bm_h, golds), "dense": rank_all(de_h, golds), "hybrid": rank_all(hy_h, golds)} 
+    rr = {"bm25": rank_all(bm_h, golds), "dense": rank_all(de_h, golds), "hybrid": rank_all(hy_h, golds)} 
     return ix.depth, len(ix.ch), rr
 
 LOG = {"bm25": ("bm25", ""), "dense": ("dense-bge-small", "prefix=yes"),
