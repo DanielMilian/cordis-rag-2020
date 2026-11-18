@@ -17,7 +17,7 @@ bm_h, de_h = ix.bm25_hits(questions), ix.dense_hits(Q)
 hy_h = ix.hybrid_hits(bm_h, de_h, K_RRF)
 
 
-ce = CrossEncoder(CE, device="cpu", max_lenght=512)
+ce = CrossEncoder(CE, device="cpu", max_length=512)
 cand = [h[:N] for h in hy_h]
 pr = lambda hl: [list(dict.fromkeys(p for _, p, _ in h)) for h in hl]
 rec = np.mean([g in r for r, g in zip(pr(cand), golds)])
