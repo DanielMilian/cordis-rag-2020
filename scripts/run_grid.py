@@ -1,44 +1,21 @@
-import sys, json, math, numpy as np, pandas as pd
+import sys, json, pandas as pd
 from sentence_transformers import SentenceTransformer
-from src.cordis_rag.chunking import build_chunks
-from src.cordis_rag.retrieval.bm25 import BM25Retriever
-from src.cordis_rag.eval.metrics import project_ranking, gold_ranks, summarize, paired_bootstrap
+from src.cordis_rag.eval.metrics import summarize, paired_bootstrap
 from src.cordis_rag.eval.results import log_result
+from src.cordis_rag.retrieval.hybrid import Index, PREFIX, rank_all
 
 split, K_RRF, LOGGING = "dev", 60, "--log" in sys.argv
 PREFIX = "Represent this sentence for searching relevant passages: "
 CONFIGS = [(200, 40), (400, 0), (128, 0), (128, 32), (200, 0), (200, 50), (64, 0), (64, 16)]
-df = pd.read_parquet("data/processed/projects.parquet")
-qs = [json.loads(l) for l in open(f"eval_data/eval_{split}.jsonl")]
-golds = [q["project_id"] for q in qs]
-m = SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
-Q = m.encode([PREFIX + q["question"] for q in qs], normalize_embeddings=True)
 
-def rrf(lists, k, pid_of):
-    sc = {}
-    for hits in lists:
-        for rank, (cid, _, _) in enumerate(hits, 1):
-            sc[cid] = sc.get(cid, 0.0) + 1.0 / (k + rank)
-    return [(c, pid_of[c], s) for c, s in sorted(sc.items(), key=lambda x: -x[1])]
 
 def run_config(size, ov):
-    tag = f"bge-small_{size}_{ov}"
-    ch = build_chunks(df, size, ov)
-    E = np.load(f"data/processed/emb_{tag}.npy")
-    ids = pd.read_parquet(f"data/processed/emb_{tag}_ids.parquet")
-    assert ids["chunk_id"].tolist() == ch["chunk_id"].tolist(), f"order mismatch {tag}"
-    cids, pids = ids["chunk_id"].tolist(), ch["project_id"].tolist()
-    pid_of = dict(zip(cids, pids))
-    depth = math.ceil(50 * len(ch) / len(df))
-    bm = BM25Retriever(ch)
-    bm_h = [bm.search(q["question"], k=depth) for q in qs]
-    de_h = []
-    for s in Q @ E.T:
-        idx = np.argsort(-s)[:depth]
-        de_h.append([(cids[i], pids[i], float(s[i])) for i in idx])
-    hy_h = [rrf([b, d], K_RRF, pid_of) for b, d in zip(bm_h, de_h)]
-    rk = lambda hl: gold_ranks([project_ranking(h) for h in hl], golds)
-    return depth, len(ch), {"bm25": rk(bm_h), "dense": rk(de_h), "hybrid": rk(hy_h)}
+    ix = Index(df, size, ov)
+    bm_h = ix.bm25_hits[(q["question"] for q in qs])
+    de_h = ix.dense_hits(Q)
+    hy_h = ix.hybrid_hits(bm_h, de_h, K_RRF)
+    rr = {"bm25": rank:all(bm_h, golds), "dense": rank_all(de_h, golds), "hybrid": rank_all(hy_h, golds)} 
+    return ix.depth, len(ix.ch), rr
 
 LOG = {"bm25": ("bm25", ""), "dense": ("dense-bge-small", "prefix=yes"),
        "hybrid": ("hybrid-rrf", f"bge-small+bm25 prefix=yes k={K_RRF}")}
