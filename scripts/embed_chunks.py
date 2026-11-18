@@ -7,8 +7,9 @@ SIZE, OV = int(sys.argv[1]), int(sys.argv[2])
 NAME = "BAAI/bge-small-en-v1.5"
 tag = f"bge-small_{SIZE}_{OV}"
 if Path(f"data/processed/emb_{tag}_ids.parquet").exists():
-    raise SystemExit(f"already embedded: {tag}")
-
+    print(f"already embedded: {tag}")
+    raise SystemExit(0)
+    
 df = pd.read_parquet("data/processed/projects.parquet")
 ch = build_chunks(df, SIZE, OV)
 m = SentenceTransformer(NAME, device="cpu")
