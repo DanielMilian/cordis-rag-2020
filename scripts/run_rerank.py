@@ -11,7 +11,7 @@ df = pd.read_parquet("data/processed/projects.parquet")
 qs = [json.loads(l) for l in open(f"eval_data/eval_{split}.jsonl")]
 questions, golds = [q["question"] for q in qs], [q["project_id"] for q in qs]
 m = SentenceTransformer("BAAI/bge-small-en-v1.5", device="cpu")
-Q = m.encode([PREFIX + q for q in qs], normalize_embeddings=True)
+Q = m.encode([PREFIX + q for q in questions], normalize_embeddings=True)
 ix = Index(df, SIZE, OV)
 bm_h, de_h = ix.bm25_hits(questions), ix.dense_hits(Q)
 hy_h = ix.hybrid_hits(bm_h, de_h, K_RRF)
