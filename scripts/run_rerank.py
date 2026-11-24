@@ -21,9 +21,11 @@ ce = CrossEncoder(CE, device="cpu", max_length=512)
 cand = [h[:N] for h in hy_h]
 pr = lambda hl: [list(dict.fromkeys(p for _, p, _ in h)) for h in hl]
 rec = np.mean([g in r for r, g in zip(pr(cand), golds)])
+print("distinct projects/question min/mean:", min(len(x) for x in pr(cand)), round(float(np.mean([len(x) for x in pr(cand)])), 1))
 print(f"{SIZE}/{OV} N={N} depth={ix.depth} candidate recall:", round(float(rec), 3))
 pairs = [(q, ix.text_of[c[0]]) for q, cs in zip(questions, cand) for c in cs]
-lens = np.array([len(ce.tokenizer(a, b)["input_ids"]) for a,b in pairs[:300]])
+lens = np.array([len(ce.tokenizer(a, b)["input_ids"]) for a,b in pairs])
+print("questions with >512 pair:", sorted({i // N for i, l in enumerate(lens) if l > 512}))
 print("pair tokens max", lens.max(), "share > 512:", round(float((lens > 512).mean()), 3))
 sc = ce.predict(pairs, batch_size=32, show_progress_bar=False)
 re_h, k0 = [], 0
